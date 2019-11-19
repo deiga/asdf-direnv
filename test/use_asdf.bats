@@ -92,6 +92,7 @@ teardown() {
   cat <<-EOF > "$ASDF_DATA_DIR/plugins/dummy/bin/exec-env"
 #!/usr/bin/env bash
 export JOJO=JAJA
+export FOO=$'\nBAR' # something starting with new line
 EOF
   chmod +x "$ASDF_DATA_DIR/plugins/dummy/bin/exec-env"
 
@@ -100,6 +101,7 @@ EOF
   envrc_load
 
   [ "$JOJO" == "JAJA" ] # Env exported by plugin
+  [ "$FOO" == $'\nBAR' ] # Keeps special chars
 }
 
 @test "use asdf [name] - determines version from tool-versions" {

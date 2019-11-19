@@ -120,10 +120,6 @@ _load_local_plugins_env() {
   _plugins_in_file "$tool_versions" | _tail_r | _pardo _load_plugin_version_and_file
 }
 
-_plugin_env() {
-  asdf exec direnv dotenv bash <(env)
-}
-
 # from asdf plugin_current_command
 _load_plugin_version_and_file() {
   local plugin_name=$1
@@ -148,10 +144,23 @@ _load_plugin_version_and_file() {
 _plugin_env_bash() {
   local plugin="${1}"
   local version="${2}"
-  local old_path="$PATH"
-  if [ -n "$version" ]; then
-    with_plugin_env "$plugin" "$version" _plugin_env | sed "s#:$old_path#:'\"\$PATH\"'#"
-  fi
+
+  # Save the PATH before activating the plugin environment.
+  local old_path
+  old_path="$(echo "$PATH" | tr ':' $'\n')"
+
+  # asdf's with_plugin_env expects a single function as callback
+  _dump_plugin_env() {
+    # Just take the new PATH entries set by the plugin
+    local plugin_path
+    plugin_path=$(echo "$PATH" | tr ':' $'\n' | grep -xvFf <(echo "$old_path") | tr $'\n' ':' | sed -e 's#:$##')
+    echo export PATH="$plugin_path:\$PATH"
+
+    # export all other plugin environment except for PATH
+    asdf exec direnv dump bash | sed -e $'s#;export#;\\\nexport#g' | grep -v 'export PATH='
+  }
+
+  with_plugin_env "$plugin" "$version" _dump_plugin_env
 }
 
 if [ "do" == "$1" ]; then
